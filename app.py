@@ -17,7 +17,6 @@ GREEN     = "#3fb950"
 
 # ── DATA ──
 df = pd.read_parquet("table1.parquet", engine="fastparquet")
-df = pd.read_parquet("data_both_sexes.parquet", engine="fastparquet")
 df = df[
     (df["destination_code"] < 900) &
     (df["origin_code"]      < 900) &
@@ -97,14 +96,6 @@ CENTROIDS = {
     "Zambia": (-13.1, 27.8), "Zimbabwe": (-19.0, 29.2),
 }
 
-DD_STYLE = dict(
-    backgroundColor=DARK_BG,
-    color=TEXT,
-    border=f"1px solid {BORDER}",
-    borderRadius="4px",
-    fontSize="10px",
-)
-
 def shorten(name):
     return (name
         .replace("United States of America", "USA")
@@ -117,32 +108,22 @@ def shorten(name):
         .replace("Viet Nam", "Vietnam")
         .replace("Türkiye", "Turkey"))
 
-# ── Button styles ──
 def btn_style(active, color):
     if active:
         return dict(
-            background=color,
-            color=DARK_BG,
-            border="none",
-            borderRadius="4px",
-            padding="3px 8px",
-            cursor="pointer",
-            fontSize="9px",
-            fontWeight="700",
+            background=color, color=DARK_BG,
+            border="none", borderRadius="4px",
+            padding="3px 8px", cursor="pointer",
+            fontSize="9px", fontWeight="700",
             fontFamily="monospace",
         )
-    else:
-        return dict(
-            background=CARD_BG,
-            color=color,
-            border=f"1px solid {color}",
-            borderRadius="4px",
-            padding="3px 8px",
-            cursor="pointer",
-            fontSize="9px",
-            fontWeight="700",
-            fontFamily="monospace",
-        )
+    return dict(
+        background=CARD_BG, color=color,
+        border=f"1px solid {color}",
+        borderRadius="4px", padding="3px 8px",
+        cursor="pointer", fontSize="9px",
+        fontWeight="700", fontFamily="monospace",
+    )
 
 # ── APP ──
 app = Dash(__name__, suppress_callback_exceptions=True)
@@ -152,45 +133,93 @@ app.index_string = '''
 <html>
 <head>
 {%metas%}
-<title>{%title%}</title>
+<title>Migration Flows Dashboard</title>
 {%favicon%}
 {%css%}
 <style>
-
+  /* ── Dropdown dark theme ── */
   .Select-control {
     background-color: #0d1117 !important;
     border-color: #30363d !important;
     color: #e6edf3 !important;
+    border-radius: 4px !important;
+    min-height: 28px !important;
+  }
+  .Select-input, .Select-input input {
+    background-color: #0d1117 !important;
+    color: #e6edf3 !important;
+    font-family: monospace !important;
+    font-size: 10px !important;
+  }
+  .Select-value, .Select-value-label {
+    color: #e6edf3 !important;
+    background-color: #0d1117 !important;
+    line-height: 28px !important;
+  }
+  .Select-single-value {
+    color: #e6edf3 !important;
+    background-color: #0d1117 !important;
+  }
+  .Select-placeholder {
+    color: #8b949e !important;
+    background-color: #0d1117 !important;
+    line-height: 28px !important;
+  }
+  .Select-arrow-zone {
+    background-color: #0d1117 !important;
+  }
+  .Select-arrow {
+    border-top-color: #8b949e !important;
+  }
+  .Select-clear-zone {
+    background-color: #0d1117 !important;
+    color: #8b949e !important;
   }
   .Select-menu-outer {
     background-color: #161b22 !important;
-    border-color: #30363d !important;
-    color: #e6edf3 !important;
+    border: 1px solid #30363d !important;
     z-index: 9999 !important;
+    margin-top: 2px !important;
+    border-radius: 4px !important;
+  }
+  .Select-menu {
+    background-color: #161b22 !important;
+    max-height: 200px !important;
   }
   .Select-option {
     background-color: #161b22 !important;
     color: #e6edf3 !important;
-    font-size: 11px !important;
+    font-size: 10px !important;
+    font-family: monospace !important;
+    padding: 6px 10px !important;
+    cursor: pointer !important;
   }
-  .Select-option:hover, .Select-option.is-focused {
+  .Select-option:hover,
+  .Select-option.is-focused {
     background-color: #21262d !important;
     color: #58a6ff !important;
   }
   .Select-option.is-selected {
     background-color: #1f4e8c !important;
-    color: #e6edf3 !important;
+    color: #ffffff !important;
   }
-  .Select-value-label { color: #e6edf3 !important; }
-  .Select-placeholder { color: #8b949e !important; }
-  .Select-input input {
+  .VirtualizedSelectOption {
+    background-color: #161b22 !important;
     color: #e6edf3 !important;
-    background-color: #0d1117 !important;
+    font-size: 10px !important;
+    font-family: monospace !important;
   }
-  .Select-clear, .Select-arrow { color: #8b949e !important; }
+  .VirtualizedSelectFocusedOption {
+    background-color: #21262d !important;
+    color: #58a6ff !important;
+  }
+  /* ── Scrollbar ── */
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: #0d1117; }
-  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+  ::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 2px;
+  }
 </style>
 {%scripts%}
 </head>
@@ -204,6 +233,9 @@ app.index_string = '''
 </body>
 </html>
 '''
+
+# ── Dropdown options ──
+COUNTRY_OPTIONS = [{"label": c, "value": c} for c in COUNTRIES]
 
 app.layout = html.Div(style=dict(
     background=DARK_BG,
@@ -266,22 +298,28 @@ app.layout = html.Div(style=dict(
         ), children=[
 
             html.Div("FILTERS", style=dict(
-                color=TEXT, fontSize="9px", letterSpacing="2px",
+                color=TEXT, fontSize="9px",
+                letterSpacing="2px",
                 borderBottom=f"1px solid {BORDER}",
                 paddingBottom="6px", fontWeight="700",
             )),
 
+            # Year slider
             html.Div([
                 html.Label("Year", style=dict(
-                    color=TEXT, fontSize="11px", fontWeight="600",
-                    marginBottom="4px", display="block",
+                    color=TEXT, fontSize="11px",
+                    fontWeight="600", marginBottom="4px",
+                    display="block",
                 )),
                 dcc.Slider(
                     id="year-slider",
                     min=YEARS[0], max=YEARS[-1], step=None,
-                    marks={int(y): dict(label=str(y), style=dict(
-                        fontSize="10px", color=TEXT, fontWeight="600"
-                    )) for y in YEARS},
+                    marks={int(y): dict(
+                        label=str(y),
+                        style=dict(fontSize="10px",
+                                   color=TEXT,
+                                   fontWeight="600")
+                    ) for y in YEARS},
                     value=2024,
                     tooltip=dict(placement="right",
                                  always_visible=False),
@@ -289,17 +327,22 @@ app.layout = html.Div(style=dict(
                 ),
             ]),
 
+            # Top N slider
             html.Div([
                 html.Label("Top N", style=dict(
-                    color=TEXT, fontSize="11px", fontWeight="600",
-                    marginBottom="4px", display="block",
+                    color=TEXT, fontSize="11px",
+                    fontWeight="600", marginBottom="4px",
+                    display="block",
                 )),
                 dcc.Slider(
                     id="topn-slider",
                     min=5, max=20, step=5,
-                    marks={i: dict(label=str(i), style=dict(
-                        fontSize="10px", color=TEXT, fontWeight="600"
-                    )) for i in [5, 10, 15, 20]},
+                    marks={i: dict(
+                        label=str(i),
+                        style=dict(fontSize="10px",
+                                   color=TEXT,
+                                   fontWeight="600")
+                    ) for i in [5, 10, 15, 20]},
                     value=10,
                     tooltip=dict(placement="right",
                                  always_visible=False),
@@ -307,41 +350,58 @@ app.layout = html.Div(style=dict(
                 ),
             ]),
 
+            # Country filter section
             html.Div("COUNTRY FILTER", style=dict(
-                color=TEXT, fontSize="9px", letterSpacing="2px",
+                color=TEXT, fontSize="9px",
+                letterSpacing="2px",
                 borderBottom=f"1px solid {BORDER}",
                 paddingBottom="6px", fontWeight="700",
                 marginTop="4px",
             )),
 
+            # Receiver dropdown
             html.Div([
                 html.Label("🟢 Receiver", style=dict(
-                    color=GREEN, fontSize="10px", fontWeight="700",
-                    marginBottom="4px", display="block",
+                    color=GREEN, fontSize="10px",
+                    fontWeight="700", marginBottom="4px",
+                    display="block",
                 )),
                 dcc.Dropdown(
                     id="recv-filter",
-                    options=[{"label": c, "value": c}
-                             for c in COUNTRIES],
-                    value=None, placeholder="All receivers...",
-                    clearable=True, style=DD_STYLE,
+                    options=COUNTRY_OPTIONS,
+                    value=None,
+                    placeholder="All receivers...",
+                    clearable=True,
+                    style=dict(
+                        backgroundColor=DARK_BG,
+                        fontSize="10px",
+                    ),
+                    className="dark-dd",
                 ),
             ]),
 
+            # Sender dropdown
             html.Div([
                 html.Label("🟠 Sender", style=dict(
-                    color=ACCENT2, fontSize="10px", fontWeight="700",
-                    marginBottom="4px", display="block",
+                    color=ACCENT2, fontSize="10px",
+                    fontWeight="700", marginBottom="4px",
+                    display="block",
                 )),
                 dcc.Dropdown(
                     id="send-filter",
-                    options=[{"label": c, "value": c}
-                             for c in COUNTRIES],
-                    value=None, placeholder="All senders...",
-                    clearable=True, style=DD_STYLE,
+                    options=COUNTRY_OPTIONS,
+                    value=None,
+                    placeholder="All senders...",
+                    clearable=True,
+                    style=dict(
+                        backgroundColor=DARK_BG,
+                        fontSize="10px",
+                    ),
+                    className="dark-dd",
                 ),
             ]),
 
+            # Reset button
             html.Button(
                 "⟳ Reset All", id="reset-btn", n_clicks=0,
                 style=dict(
@@ -385,13 +445,13 @@ app.layout = html.Div(style=dict(
                           config=dict(displayModeBar=False)),
             ]),
 
-            # Bar + Donut
+            # Bar + Donut row
             html.Div(style=dict(
                 flex="1", display="flex",
                 gap="6px", overflow="hidden",
             ), children=[
 
-                # Bar chart card
+                # Bar card
                 html.Div(style=dict(
                     flex="3", background=CARD_BG,
                     border=f"1px solid {BORDER}",
@@ -399,8 +459,7 @@ app.layout = html.Div(style=dict(
                     display="flex", flexDirection="column",
                     overflow="hidden",
                 ), children=[
-
-                    # Header: title + toggle buttons
+                    # Header row with title + toggle buttons
                     html.Div(style=dict(
                         display="flex",
                         justifyContent="space-between",
@@ -408,26 +467,24 @@ app.layout = html.Div(style=dict(
                         marginBottom="6px",
                     ), children=[
                         html.Div("🏆 TOP 5 SENDERS & RECEIVERS",
-                                 style=dict(color=MUTED, fontSize="9px",
+                                 style=dict(color=MUTED,
+                                            fontSize="9px",
                                             letterSpacing="1px")),
                         html.Div(style=dict(
                             display="flex", gap="4px",
                         ), children=[
                             html.Button(
                                 "🟢 Receivers",
-                                id="btn-recv",
-                                n_clicks=0,
+                                id="btn-recv", n_clicks=0,
                                 style=btn_style(True, GREEN),
                             ),
                             html.Button(
                                 "🟠 Senders",
-                                id="btn-send",
-                                n_clicks=0,
+                                id="btn-send", n_clicks=0,
                                 style=btn_style(False, ACCENT2),
                             ),
                         ]),
                     ]),
-
                     dcc.Graph(id="bar-compare",
                               style=dict(flex="1", minHeight="0"),
                               config=dict(displayModeBar=False)),
@@ -461,6 +518,7 @@ app.layout = html.Div(style=dict(
             overflow="hidden",
         ), children=[
 
+            # Map
             html.Div(style=dict(
                 flex="3", background=CARD_BG,
                 border=f"1px solid {BORDER}",
@@ -469,7 +527,7 @@ app.layout = html.Div(style=dict(
                 overflow="hidden",
             ), children=[
                 html.Div(
-                    "🌍 GLOBAL MIGRANT STOCK · click a country to filter",
+                    "🌍 GLOBAL MIGRANT STOCK · click country to filter",
                     style=dict(color=MUTED, fontSize="9px",
                                letterSpacing="1px",
                                marginBottom="4px")),
@@ -478,6 +536,7 @@ app.layout = html.Div(style=dict(
                           config=dict(displayModeBar=False)),
             ]),
 
+            # Time series
             html.Div(style=dict(
                 flex="2", background=CARD_BG,
                 border=f"1px solid {BORDER}",
@@ -503,11 +562,11 @@ app.layout = html.Div(style=dict(
 # ── CALLBACKS ──
 
 @callback(
-    Output("bar-mode",  "data"),
-    Output("btn-recv",  "style"),
-    Output("btn-send",  "style"),
-    Input("btn-recv",   "n_clicks"),
-    Input("btn-send",   "n_clicks"),
+    Output("bar-mode", "data"),
+    Output("btn-recv", "style"),
+    Output("btn-send", "style"),
+    Input("btn-recv",  "n_clicks"),
+    Input("btn-send",  "n_clicks"),
 )
 def toggle_bar_mode(r_clicks, s_clicks):
     from dash import ctx
@@ -613,7 +672,8 @@ def update_choropleth(year, selected):
         val     = row["migrant_stock"]
         is_sel  = selected and country == selected
         opacity = 1.0 if not selected or is_sel else 0.2
-        color   = HIGHLIGHT if is_sel else COUNTRY_COLOR.get(country, ACCENT)
+        color   = HIGHLIGHT if is_sel else COUNTRY_COLOR.get(
+            country, ACCENT)
         traces.append(go.Choropleth(
             locations=[country],
             locationmode="country names",
@@ -633,6 +693,7 @@ def update_choropleth(year, selected):
             ),
         ))
 
+    # Country name labels
     lats, lons, texts = [], [], []
     for _, row in agg.iterrows():
         c = row["destination"]
@@ -644,7 +705,8 @@ def update_choropleth(year, selected):
 
     traces.append(go.Scattergeo(
         lat=lats, lon=lons, text=texts, mode="text",
-        textfont=dict(size=7, color="white", family="monospace"),
+        textfont=dict(size=7, color="white",
+                      family="monospace"),
         hoverinfo="skip", showlegend=False,
     ))
 
@@ -677,7 +739,8 @@ def update_choropleth(year, selected):
     Input("send-filter",      "value"),
 )
 def update_sankey(year, top_n, selected, recv_f, send_f):
-    subset = df[df["year"] == year].dropna(subset=["migrant_stock"])
+    subset = df[df["year"] == year].dropna(
+        subset=["migrant_stock"])
     if selected:
         subset = subset[
             (subset["origin"] == selected) |
@@ -769,8 +832,7 @@ def update_bar(year, selected, recv_f, send_f, mode):
         bar_color_base = ACCENT2
 
     data["short"] = data["country"].apply(shorten)
-
-    colors = [
+    colors    = [
         HIGHLIGHT if selected and c == selected
         else COUNTRY_COLOR.get(c, bar_color_base)
         for c in data["country"]
@@ -785,29 +847,26 @@ def update_bar(year, selected, recv_f, send_f, mode):
         x=data["value"],
         orientation="h",
         marker=dict(
-            color=colors,
-            opacity=opacities,
+            color=colors, opacity=opacities,
             line=dict(color=bar_color_base, width=1),
         ),
         text=data["value"].apply(lambda v: f"{v/1e6:.1f}M"),
         textposition="outside",
-        textfont=dict(color=TEXT, size=10, family="monospace"),
+        textfont=dict(color=TEXT, size=10,
+                      family="monospace"),
         hovertemplate="%{y}: %{x:,.0f}<extra></extra>",
     ))
-
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color=TEXT),
         xaxis=dict(
-            tickformat=",.0f",
-            gridcolor=GRID,
+            tickformat=",.0f", gridcolor=GRID,
             tickfont=dict(size=8, color=MUTED),
             range=[0, data["value"].max() * 1.35],
         ),
         yaxis=dict(
-            gridcolor=GRID,
-            autorange="reversed",
+            gridcolor=GRID, autorange="reversed",
             tickfont=dict(color=TEXT, size=9),
         ),
         margin=dict(l=0, r=60, t=4, b=0),
@@ -828,41 +887,48 @@ def update_donut(year, selected, recv_f, send_f):
     yr = df[df["year"] == year]
 
     if recv_f:
-        agg = (yr[yr["destination"] == recv_f]
-               .groupby("origin")["migrant_stock"].sum()
-               .nlargest(5).reset_index()
-               .rename(columns={"origin": "country",
-                                "migrant_stock": "value"}))
+        agg = (
+            yr[yr["destination"] == recv_f]
+            .groupby("origin")["migrant_stock"].sum()
+            .nlargest(5).reset_index()
+            .rename(columns={"origin": "country",
+                             "migrant_stock": "value"})
+        )
         title = f"Into {recv_f[:10]}"
     elif send_f:
-        agg = (yr[yr["origin"] == send_f]
-               .groupby("destination")["migrant_stock"].sum()
-               .nlargest(5).reset_index()
-               .rename(columns={"destination": "country",
-                                "migrant_stock": "value"}))
+        agg = (
+            yr[yr["origin"] == send_f]
+            .groupby("destination")["migrant_stock"].sum()
+            .nlargest(5).reset_index()
+            .rename(columns={"destination": "country",
+                             "migrant_stock": "value"})
+        )
         title = f"From {send_f[:10]}"
     elif selected:
-        agg = (yr[yr["destination"] == selected]
-               .groupby("origin")["migrant_stock"].sum()
-               .nlargest(5).reset_index()
-               .rename(columns={"origin": "country",
-                                "migrant_stock": "value"}))
+        agg = (
+            yr[yr["destination"] == selected]
+            .groupby("origin")["migrant_stock"].sum()
+            .nlargest(5).reset_index()
+            .rename(columns={"origin": "country",
+                             "migrant_stock": "value"})
+        )
         title = f"Into {selected[:10]}"
     else:
-        agg = (yr.groupby("destination")["migrant_stock"].sum()
-               .nlargest(5).reset_index()
-               .rename(columns={"destination": "country",
-                                "migrant_stock": "value"}))
+        agg = (
+            yr.groupby("destination")["migrant_stock"].sum()
+            .nlargest(5).reset_index()
+            .rename(columns={"destination": "country",
+                             "migrant_stock": "value"})
+        )
         title = "Top 5 Receivers"
 
     total  = agg["value"].sum()
     labels = agg["country"].apply(shorten)
-    colors = [COUNTRY_COLOR.get(c, ACCENT) for c in agg["country"]]
+    colors = [COUNTRY_COLOR.get(c, ACCENT)
+              for c in agg["country"]]
 
     fig = go.Figure(go.Pie(
-        labels=labels,
-        values=agg["value"],
-        hole=0.55,
+        labels=labels, values=agg["value"], hole=0.55,
         marker=dict(colors=colors,
                     line=dict(color=DARK_BG, width=1)),
         textinfo="percent",
@@ -872,8 +938,7 @@ def update_donut(year, selected, recv_f, send_f):
             "%{value:,.0f} migrants<br>"
             "%{percent}<extra></extra>"
         ),
-        direction="clockwise",
-        sort=True,
+        direction="clockwise", sort=True,
     ))
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
