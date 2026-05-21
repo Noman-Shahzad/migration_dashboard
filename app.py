@@ -442,23 +442,6 @@ app.layout = html.Div(style=dict(
                     config=dict(displayModeBar=False),
                 ),
             ]),
-        # ── Sankey Flows ──────────────────────────────────────────────
-            html.Div(style=dict(flex="1", display="flex", flexDirection="column"), children=[
-                html.Div(id="label-sankey", style=dict(
-                    color=MUTED, fontSize="10px",
-                    letterSpacing="0.5px", textTransform="uppercase",
-                    marginBottom="4px", fontFamily="inherit",
-                ), children="Top Migration Flows"),
-                dcc.Loading(
-                    type="dot", color=ACCENT,
-                    style=dict(flex="1", minHeight="0", display="flex", justifyContent="center", alignItems="center"),
-                    children=dcc.Graph(
-                        id="sankey-chart",
-                        style=dict(flex="1", minHeight="0", height="100%"),
-                        config=dict(displayModeBar=False, responsive=True),
-                    ),
-                ),
-            ]),
 
             html.Div(style=dict(flex="1", **CARD), children=[
                 html.Div(id="label-timeseries", style=dict(
