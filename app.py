@@ -442,6 +442,23 @@ app.layout = html.Div(style=dict(
                     config=dict(displayModeBar=False),
                 ),
             ]),
+        # ── Sankey Flows ──────────────────────────────────────────────
+            html.Div(style=dict(flex="1", display="flex", flexDirection="column"), children=[
+                html.Div(id="label-sankey", style=dict(
+                    color=MUTED, fontSize="10px",
+                    letterSpacing="0.5px", textTransform="uppercase",
+                    marginBottom="4px", fontFamily="inherit",
+                ), children="Top Migration Flows"),
+                dcc.Loading(
+                    type="dot", color=ACCENT,
+                    style=dict(flex="1", minHeight="0", display="flex", justifyContent="center", alignItems="center"),
+                    children=dcc.Graph(
+                        id="sankey-chart",
+                        style=dict(flex="1", minHeight="0", height="100%"),
+                        config=dict(displayModeBar=False, responsive=True),
+                    ),
+                ),
+            ]),
 
             html.Div(style=dict(flex="1", **CARD), children=[
                 html.Div(id="label-timeseries", style=dict(
@@ -485,7 +502,7 @@ def update_selection(map_click, clear_n, slicer_val,current):
 )
 def toggle_detail_panel(country):
     if country:
-        return dict(flex="2", display="flex", gap="6px", overflow="hidden")
+        return dict(flex="2.5", display="flex", gap="6px", overflow="hidden")
     return dict(display="none")
 
 
@@ -854,7 +871,7 @@ def update_gender(year, selected):
     sent_yr = GENDER_SENT[
         (GENDER_SENT["origin"] == selected) & (GENDER_SENT["year"] == year)
     ].copy()
-
+    
     if recv_yr.empty and sent_yr.empty:
         return empty, f"No gender data  ·  {shorten(selected)}"
 
@@ -866,6 +883,7 @@ def update_gender(year, selected):
     recv_female = get_val(recv_yr, "female")
     sent_male   = get_val(sent_yr, "male")
     sent_female = get_val(sent_yr, "female")
+    
 
     recv_total = recv_male + recv_female or 1
     sent_total = sent_male + sent_female or 1
@@ -955,7 +973,132 @@ def update_gender(year, selected):
     title = f"Gender Breakdown  ·  {shorten(selected)}  ·  {year}"
     return fig, title
 
+@callback(
+    Output("sankey-chart",  "figure"),
+    Output("label-sankey",  "children"),
+    Input("year-slider",    "value"),
+    Input("sel-country",    "data"),
+)
+def update_sankey(year, selected):
+    empty = go.Figure(layout=go.Layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    ))
+    if not selected:
+        return empty, "Top Migration Flows"
 
+    # ── Top 6 origins INTO selected country ──────────────────────────────
+    into = (
+        FLOWS_INTO[
+            (FLOWS_INTO["destination"] == selected) &
+            (FLOWS_INTO["year"] == year)
+        ]
+        .nlargest(6, "migrant_stock")
+        [["origin", "migrant_stock"]]
+    )
+
+    # ── Top 6 destinations FROM selected country ─────────────────────────
+    from_ = (
+        FLOWS_FROM[
+            (FLOWS_FROM["origin"] == selected) &
+            (FLOWS_FROM["year"] == year)
+        ]
+        .nlargest(6, "migrant_stock")
+        [["destination", "migrant_stock"]]
+    )
+
+    if into.empty and from_.empty:
+        return empty, f"No flow data  ·  {shorten(selected)}"
+
+    # ── Build node list ───────────────────────────────────────────────────
+    # Structure: [origin countries] → [selected] → [destination countries]
+    origin_nodes = into["origin"].tolist()      if not into.empty   else []
+    dest_nodes   = from_["destination"].tolist() if not from_.empty else []
+
+    # Deduplicate — a country can appear on both sides
+    all_nodes = origin_nodes + [selected] + dest_nodes
+    # Build index (keep first occurrence)
+    seen = {}
+    for n in all_nodes:
+        if n not in seen:
+            seen[n] = len(seen)
+    node_idx = seen
+    nodes    = list(seen.keys())
+
+    sel_idx  = node_idx[selected]
+
+    # ── Build links ───────────────────────────────────────────────────────
+    sources, targets, values, link_colors = [], [], [], []
+
+    # Origins → Selected  (blue tones)
+    for _, row in into.iterrows():
+        sources.append(node_idx[row["origin"]])
+        targets.append(sel_idx)
+        values.append(float(row["migrant_stock"]))
+        link_colors.append("rgba(9,105,218,0.25)")   # ACCENT transparent
+
+    # Selected → Destinations  (orange tones)
+    for _, row in from_.iterrows():
+        dest = row["destination"]
+        sources.append(sel_idx)
+        targets.append(node_idx[dest])
+        values.append(float(row["migrant_stock"]))
+        link_colors.append("rgba(224,123,57,0.25)")  # SENDER transparent
+
+    # ── Node colours ─────────────────────────────────────────────────────
+    node_colors = []
+    for n in nodes:
+        if n == selected:
+            node_colors.append(ACCENT)           # selected = blue
+        elif n in origin_nodes:
+            node_colors.append("rgba(9,105,218,0.55)")
+        else:
+            node_colors.append("rgba(224,123,57,0.55)")
+
+    # ── Short labels ─────────────────────────────────────────────────────
+    node_labels = [shorten(n) for n in nodes]
+
+    fig = go.Figure(go.Sankey(
+        arrangement="freeform",
+        node=dict(
+            pad=10,
+            thickness=14,
+            line=dict(color=BORDER, width=0.5),
+            label=node_labels,
+            color=node_colors,
+            hovertemplate="%{label}<extra></extra>",
+        ),
+        link=dict(
+            source=sources,
+            target=targets,
+            value=values,
+            color=link_colors,
+            hovertemplate=(
+                "%{source.label} → %{target.label}<br>"
+                "%{value:,.0f} migrants<extra></extra>"
+            ),
+        ),
+        textfont=dict(
+            size=9,
+            color=TEXT,
+            family="system-ui, -apple-system, sans-serif",
+        ),
+    ))
+
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color=TEXT, size=9,
+                  family="system-ui, -apple-system, sans-serif"),
+        margin=dict(l=80, r=80, t=10, b=10),
+        height=260,
+    )
+
+    label = (
+        f"Top Flows  ·  {shorten(selected)}  ·  {year}  "
+        f"— blue = origins,  orange = destinations"
+    )
+    return fig, label
 
 def _nearest_countries(selected: str, n: int = 4) -> list:
     if selected not in CENTROIDS:
