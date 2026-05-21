@@ -22,6 +22,7 @@ This is where it gets interesting. Click any country on the map and:
 -Two buttons appear — Origins and Destinations — toggle between them
 -A bottom panel slides open with two more charts:
 	-Gender chart — male vs. female split for that country
+	- Sanaky Chart to show the flow of the origin to Destination with total migrants to origin and origin to destination
 	-Trend chart — migration over time, compared to the 4 nearest countries geographically. The dotted line = the year you selected.
 	
 4. Go back to global view
