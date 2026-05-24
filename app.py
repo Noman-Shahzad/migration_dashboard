@@ -208,7 +208,7 @@ app.index_string = """<!DOCTYPE html>
 <html>
 <head>
 {%metas%}
-<title>Global Migration Flows</title>
+<title>Global Migration Stocks</title>
 {%favicon%}
 {%css%}
 <style>
@@ -279,7 +279,7 @@ app.layout = html.Div(style=dict(
         flexShrink="0",
     ), children=[
         html.Div(style=dict(display="flex", flexDirection="column", gap="1px"), children=[
-            html.Div("Global Migration Flows",
+            html.Div("Global Migration Stocks",
                      style=dict(fontSize="15px", fontWeight="700", color=TEXT)),
             html.Div("Noman Shahzad · Stepan Pshenichnyi · Vasiliki Korai",
                      style=dict(fontSize="10px", color=MUTED)),
